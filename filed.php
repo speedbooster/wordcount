@@ -1,16 +1,21 @@
 <?php // BISMILLAAHIRRAHMAANIRRAHEEM
 ini_set("max_execution_time", 10);
 $depthlimit = 2;
+$subpagelimit = 10;
 $pages = [];
-function get_elements($inurl, $siteurl, $escurl, $str, $stage = 0) {
-	global $pages, $depthlimit;
+function get_elements($inurl, $siteurl, $escurl, $protocol, $str, $stage = 0) {
+	global $pages, $depthlimit, $subpagelimit;
 	$offset = "";
 	for ($i = 0; $i < $stage; $i++)
 	{
-		$offset .= " ";
+		$offset .= "  ";
 	}
-	echo $offset . $inurl . "\n";
+	echo $offset . $inurl . "<br />\n";
+	// echo $offset . $inurl;
+	// echo $offset . "> " . $siteurl . "<br />\n";
+	// echo $offset . "> " . $escurl . "<br />\n";
 	if (!preg_match("/^(?:(?:(?:https:\/\/)|(?:http:\/\/))(?:www\.)*)(.+)/i", $inurl, $match)) { // extract url without http etc
+		// echo "\turl error<br />\n";
 		array_push( $pages, [ "url" => $inurl, "status" => false, "message" => "preg_match error", "count" => 0, "sub-pages" => 0, "sub-page-links" =>[] ] );
 		return;
 	}
@@ -18,10 +23,12 @@ function get_elements($inurl, $siteurl, $escurl, $str, $stage = 0) {
 	$site = $inurl;
 	$sitetosave = preg_match("/.[^?#]+/i", $match[1], $m) ? $m[0] : $match[1]; // extract url without query string - to save as unique
 	if (in_array($sitetosave, array_column($pages, "url"))) {
+		// echo "\trepeated url<br />\n";
 		return;
 	}
 	if (($depthlimit > 0) && ($stage >= $depthlimit))
 	{
+		// echo "\texceeded depth limit<br />\n";
 		return;
 	}
 	$knownexts = ["php", "asp", "aspx", "jsp", "html", "htm"];
@@ -35,14 +42,17 @@ function get_elements($inurl, $siteurl, $escurl, $str, $stage = 0) {
 			if (str_contains($http_response_header[0], "404"))
 			{
 				array_push( $pages, [ "url" => $sitetosave, "status" => false, "message" => "404 error", "count" => 0, "sub-pages" => 0, "sub-page-links" =>[] ] );
+				// echo "\t404 error<br />\n";
 				return;
 			}
 		}
 	}
 	if ($content === false) {
+		// echo "\terror<br />\n";
 		array_push( $pages, [ "url" => $sitetosave, "status" => false, "message" => "file_get_contents error", "count" => 0, "sub-pages" => 0, "sub-page-links" =>[] ] );
 	} else {
 		$count = count(explode($str, $content));
+		// echo "\t" . $count . "<br />\n";
 		$match = [];
 		$page = [];
 		$page["url"] = $sitetosave;
@@ -53,10 +63,17 @@ function get_elements($inurl, $siteurl, $escurl, $str, $stage = 0) {
 		$page["sub-page-links"] = [];
 		array_push($pages, $page);
 		$pindex = count($pages) - 1;
-		if (!preg_match_all("/<a\s(?:[^>]\s*)*href=[\"']*([^\"'>]+)[\"'\s]*/i", $content, $match)) {// extract urls from <a ... href=
+		if (!preg_match_all("/<a\s(?:[^>]\s*)*href=[\"']*([^\"'>]+)[\"'\s]*/i", $content, $match)) { // extract urls from <a ... href=
 			return;
         }
+		$i = 0;
 		foreach ($match[1] as $elem) {
+			if (($subpagelimit > 0) & ($i >= $subpagelimit))
+			{
+				echo $offset . "(sub-page limit reached. exiting...)<br />\n";
+				break;
+			}
+			++$i;
 				/*	is url extractable?
 						no.....
 							skip
@@ -85,6 +102,7 @@ function get_elements($inurl, $siteurl, $escurl, $str, $stage = 0) {
 																no..... it could be foreign path	*/
 			$debug = [];
 			$url = $elem;
+			$pprot = preg_match("/^(?:((?:https:\/\/)|(?:http:\/\/))+).*/i", $url, $match) ? $match[1] : $protocol;
 			// check if local or foreign url
 			$purl = 	preg_match("/^(?:(?:(?:https:\/\/)|(?:http:\/\/))*(?:www\.)*)[a-z0-9\.]+/i", $url, $match) // url starts with these keywords?
 							? (preg_match("/^(?:[^\/?\.]*\.){0,}(?:$escurl)(?=[^\.a-z0-9\-])/i", $match[0], $match) // has the required base url? (any subdomain: sub0.domain.com sub1.domain.com)
@@ -106,14 +124,14 @@ function get_elements($inurl, $siteurl, $escurl, $str, $stage = 0) {
 							// 	// )
 							// )
 							: (preg_match("/^\/.+/i", $url, $match) // no, does not start with these keywords - has / at start?
-								? $siteurl . $url // yes - its local path
+								? $pprot . $siteurl . $url // yes - its local path
 								: ((!preg_match("/^[a-z0-9\-]+\.[a-z0-9\-]+[^\.a-z0-9\-]/i", $url, $match)) // no - has . in path? (inverted condition)
-									? $siteurl . "/" . $url // no - its local path
+									? $pprot . $siteurl . "/" . $url // no - its local path
 									: (preg_match("/^[a-z0-9\-]+\/[a-z0-9\-]*\.[a-z0-9\-]*/i", $match[0], $match) // yes - is first . after a slash?
-										? $siteurl . "/" . $url // yes - its local path
+										? $pprot . $siteurl . "/" . $url // yes - its local path
 										: (preg_match("/(?<=[a-z0-9\-]\.)[a-z0-9\-]+/i", $match[0], $match) // no - is the alphanumeric string after the first dot extractable (InShaaALLAAH of course)
 											? (in_array(strtolower($match[0]), $knownexts) // ALHAMDOLILLAAH yes - does it belong to known file extensions?
-												? $siteurl . "/" . $url // yes - its "likely" a local path
+												? $pprot . $siteurl . "/" . $url // yes - its "likely" a local path
 												: "" // no - its "likely" a foreign site, so ignore
 											)
 											: "" // just unlikely (InShaaALLAAH) placeholder condition for else
@@ -133,22 +151,23 @@ function get_elements($inurl, $siteurl, $escurl, $str, $stage = 0) {
 						continue;
 					}
 				}
-				$tmp = strlen($site . "/" . "#");
+				$tmp = strlen($pprot . $siteurl . "/" . "#");
 				if (strlen($purl) >= $tmp)
 				{
-					if (($purl == $site . "/" . "/") || (substr($purl, 0, $tmp) == $site . "/" . "#"))
+					if (($purl == $pprot . $siteurl . "/" . "/") || (substr($purl, 0, $tmp) == $pprot . $siteurl . "/" . "#"))
 					{
-						echo $offset . " rejecting " . $purl . "\n";
+						echo $offset . "  (rejecting...) " . $purl . "<br />\n";
 						array_push($pages[$pindex]["sub-page-links"], ["orig-url" => $url, "new-url" => $purl, "status" => "skip"]);
 						continue;
 					}
 				}
 				++$pages[$pindex]["sub-pages"];
-				array_push($pages[$pindex]["sub-page-links"], ["orig-url" => $url, "new-url" => $purl, "status" => ""]);
-				$newsiteurl = preg_match("/^(?:(?:(?:https:\/\/)|(?:http:\/\/))(?:www\.)*)([a-z0-9\.]+)/i", $site, $match) ? $match[0] : $site;
+				array_push($pages[$pindex]["sub-page-links"], ["orig-url" => $url, "new-url" => $purl, "status" => "passed"]);
+				// $newsiteurl = preg_match("/^(?:(?:(?:https:\/\/)|(?:http:\/\/))(?:www\.)*)(.+)/i", $purl, $match) ? $match[0] : $purl;
+				$newsiteurl = preg_match("/^(?:(?:(?:https:\/\/)|(?:http:\/\/))(?:www\.)*)([^\?]+)[\/]/i", $purl, $match) ? $match[1] : $purl;
 				$newescurl = str_replace(".", "\\.", $newsiteurl);
 				$newescurl = str_replace("/", "\/", $newescurl);
-				get_elements($purl, $newsiteurl, $newescurl, $str, $stage+1);
+				get_elements($purl, $newsiteurl, $newescurl, $pprot, $str, $stage+1);
 			} else {
 				array_push($pages[$pindex]["sub-page-links"], ["orig-url" => $url, "new-url" => $purl, "status" => "skip"]);
 			}
@@ -156,14 +175,16 @@ function get_elements($inurl, $siteurl, $escurl, $str, $stage = 0) {
 		$pages[$pindex]["message"] = "";
 	} // end if
 }
-// $site = "https://www.nobleprog.co.uk";
-$site = "http://127.0.0.1:81/work/test";
+$site = "https://www.nobleprog.co.uk/"; // base url must end with a slash
+// $site = "http://127.0.0.1:81/work/test/";
 $str = "training";
-$siteurl = preg_match("/^(?:(?:(?:https:\/\/)|(?:http:\/\/))(?:www\.)*)([a-z0-9\.]+)/i", $site, $match) ? $match[0] : $site;
+// $siteurl = preg_match("/^(?:(?:(?:https:\/\/)|(?:http:\/\/))(?:www\.)*)([a-z0-9\.]+)/i", $site, $match) ? $match[0] : $site;
+// $siteurl = preg_match("/^(?:(?:(?:https:\/\/)|(?:http:\/\/))(?:www\.)*)(.+)/i", $site, $match) ? $match[0] : $site;
+// https://www.someurl.com/path/abc.php?r=/this/path -> someurl.com/path
+$protocol = preg_match("/^(?:((?:https:\/\/)|(?:http:\/\/))+).*/i", $site, $match) ? $match[1] : "http://";
+$siteurl = preg_match("/^(?:(?:(?:https:\/\/)|(?:http:\/\/))(?:www\.)*)([^\?]*)[\/]/i", $site, $match) ? $match[1] : $site;
 $escurl = str_replace(".", "\\.", $siteurl);
 $escurl = str_replace("/", "\/", $escurl);
-echo "> " . $siteurl . "\n";
-echo "> " . $escurl . "\n";
 set_error_handler("warning_handler", E_WARNING);
 
 function warning_handler($errno, $errstr) { 
@@ -172,7 +193,20 @@ function warning_handler($errno, $errstr) {
 	// debug_print_backtrace();
 	// echo "<br /><br />";
 }
-get_elements($site, $siteurl, $escurl, $str);
+echo "Root url: " . $site . "<br />\n<br />\n";
+get_elements($site, $siteurl, $escurl, $protocol, $str);
+$counts = array_column($pages, "count");
+$maxdigits = strlen(strval(max($counts)));
+echo "<br />\n";
+echo "- Results: <br />\n<br />\n";
+foreach ($pages as $page) {
+	if ($page["status"]) {
+		echo sprintf("%0" . $maxdigits . "d", $page["count"]) . " \t " . $page["url"] . "<br />\n";
+	}
+}
+echo "<br />\n";
+echo "Total count of keyword \"" . $str . "\" on all pages: " . array_sum($counts) . "<br />\n";
+echo "<br />\n";
 restore_error_handler();
-print_r($pages);
+// print_r($pages);
 ?>
