@@ -2,17 +2,9 @@
 ini_set("max_execution_time", 10);
 $depthlimit = 2;
 $subpagelimit = 10;
-$newline = "";
-$space = " ";
-$html = isset($_GET["html"]);
-if ($html)
-{
-	$newline = "<br />";
-	$space = "&nbsp;";
-}
-$singleoffset = $space . $space;
+$singleoffset = "&nbsp;&nbsp;";
 $pages = [];
-echo ($html) ? "<samp>" : "";
+echo "<samp>";
 function get_elements($inurl, $siteurl, $escurl, $protocol, $str, $stage = 0) {
 	global $pages, $depthlimit, $subpagelimit, $singleoffset;
 	$offset = "";
@@ -20,12 +12,12 @@ function get_elements($inurl, $siteurl, $escurl, $protocol, $str, $stage = 0) {
 	{
 		$offset .= $singleoffset;
 	}
-	echo $offset . $inurl . "$newline\n";
+	echo $offset . $inurl . "<br />\n";
 	// echo $offset . $inurl;
-	// echo $offset . "> " . $siteurl . "$newline\n";
-	// echo $offset . "> " . $escurl . "$newline\n";
+	// echo $offset . "> " . $siteurl . "<br />\n";
+	// echo $offset . "> " . $escurl . "<br />\n";
 	if (!preg_match("/^(?:(?:(?:https:\/\/)|(?:http:\/\/))(?:www\.)*)(.+)/i", $inurl, $match)) { // extract url without http etc
-		// echo "\turl error$newline\n";
+		// echo "\turl error<br />\n";
 		array_push( $pages, [ "url" => $inurl, "status" => false, "message" => "preg_match error", "count" => 0, "sub-pages" => 0, "sub-page-links" =>[] ] );
 		return;
 	}
@@ -33,12 +25,12 @@ function get_elements($inurl, $siteurl, $escurl, $protocol, $str, $stage = 0) {
 	$site = $inurl;
 	$sitetosave = preg_match("/.[^?#]+/i", $match[1], $m) ? $m[0] : $match[1]; // extract url without query string - to save as unique
 	if (in_array($sitetosave, array_column($pages, "url"))) {
-		// echo "\trepeated url$newline\n";
+		// echo "\trepeated url<br />\n";
 		return;
 	}
 	if (($depthlimit > 0) && ($stage >= $depthlimit))
 	{
-		// echo "\texceeded depth limit$newline\n";
+		// echo "\texceeded depth limit<br />\n";
 		return;
 	}
 	$knownexts = ["php", "asp", "aspx", "jsp", "html", "htm"];
@@ -52,17 +44,17 @@ function get_elements($inurl, $siteurl, $escurl, $protocol, $str, $stage = 0) {
 			if (str_contains($http_response_header[0], "404"))
 			{
 				array_push( $pages, [ "url" => $sitetosave, "status" => false, "message" => "404 error", "count" => 0, "sub-pages" => 0, "sub-page-links" =>[] ] );
-				// echo "\t404 error$newline\n";
+				// echo "\t404 error<br />\n";
 				return;
 			}
 		}
 	}
 	if ($content === false) {
-		// echo "\terror$newline\n";
+		// echo "\terror<br />\n";
 		array_push( $pages, [ "url" => $sitetosave, "status" => false, "message" => "file_get_contents error", "count" => 0, "sub-pages" => 0, "sub-page-links" =>[] ] );
 	} else {
 		$count = count(explode($str, $content));
-		// echo "\t" . $count . "$newline\n";
+		// echo "\t" . $count . "<br />\n";
 		$match = [];
 		$page = [];
 		$page["url"] = $sitetosave;
@@ -80,7 +72,7 @@ function get_elements($inurl, $siteurl, $escurl, $protocol, $str, $stage = 0) {
 		foreach ($match[1] as $elem) {
 			if (($subpagelimit > 0) & ($i >= $subpagelimit))
 			{
-				echo $offset . "(sub-page limit reached. exiting...)$newline\n";
+				echo $offset . "(sub-page limit reached. exiting...)<br />\n";
 				break;
 			}
 			++$i;
@@ -166,7 +158,7 @@ function get_elements($inurl, $siteurl, $escurl, $protocol, $str, $stage = 0) {
 				{
 					if (($purl == $pprot . $siteurl . "/" . "/") || (substr($purl, 0, $tmp) == $pprot . $siteurl . "/" . "#"))
 					{
-						echo $offset . "$singleoffset(rejecting...) " . $purl . "$newline\n";
+						echo $offset . "$singleoffset(rejecting...) " . $purl . "<br />\n";
 						array_push($pages[$pindex]["sub-page-links"], ["orig-url" => $url, "new-url" => $purl, "status" => "skip"]);
 						continue;
 					}
@@ -198,26 +190,26 @@ $escurl = str_replace("/", "\/", $escurl);
 set_error_handler("warning_handler", E_WARNING);
 
 function warning_handler($errno, $errstr) { 
-	// echo "Error: " . $errno . "$newline\n";
-	// echo "Error: " . $errstr . "$newline\n";
+	// echo "Error: " . $errno . "<br />";
+	// echo "Error: " . $errstr . "<br />";
 	// debug_print_backtrace();
-	// echo "$newline\n$newline\n";
+	// echo "<br /><br />";
 }
-echo "Root url: " . $site . "$newline\n $newline\n";
+echo "Root url: " . $site . "<br />\n<br />\n";
 get_elements($site, $siteurl, $escurl, $protocol, $str);
 $counts = array_column($pages, "count");
 $maxdigits = strlen(strval(max($counts)));
-echo "$newline\n";
-echo "- Results: $newline\n $newline\n";
+echo "<br />\n";
+echo "- Results: <br />\n<br />\n";
 foreach ($pages as $page) {
 	if ($page["status"]) {
-		echo sprintf("%0" . $maxdigits . "d", $page["count"]) . " \t " . $page["url"] . "$newline\n";
+		echo sprintf("%0" . $maxdigits . "d", $page["count"]) . " \t " . $page["url"] . "<br />\n";
 	}
 }
-echo "$newline\n";
-echo "Total count of keyword \"" . $str . "\" on all pages: " . array_sum($counts) . "$newline\n";
-echo "$newline\n";
+echo "<br />\n";
+echo "Total count of keyword \"" . $str . "\" on all pages: " . array_sum($counts) . "<br />\n";
+echo "<br />\n";
 restore_error_handler();
 // print_r($pages);
-echo ($html) ? "</samp>" : "";
+echo "</samp>";
 ?>
