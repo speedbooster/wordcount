@@ -42,7 +42,7 @@ function get_elements($inurl, $siteurl, $escurl, $protocol, $str, $stage = 0) { 
 	{
 		if (isset($http_response_header[0]))
 		{
-			if (str_contains($http_response_header[0], "404"))	// page not found?
+			if (strpos($http_response_header[0], "404"))	// page not found?
 			{
 				array_push( $pages, [ "url" => $sitetosave, "status" => false, "message" => "404 error", "count" => 0, "sub-pages" => 0, "sub-page-links" =>[] ] );
 				// echo "\t404 error\n";
