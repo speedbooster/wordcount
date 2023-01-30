@@ -1,7 +1,7 @@
 <?php // BISMILLAAHIRRAHMAANIRRAHEEM
-ini_set("max_execution_time", 0);		// maximum script execution time in seconds
-$depthlimit = 0;						// how many stages of subpages to traverse
-$subpagelimit = 0;						// how many valid url subpages of a webpage to process
+ini_set("max_execution_time", 10);		// maximum script execution time in seconds
+$depthlimit = 3;						// how many stages of subpages to traverse
+$subpagelimit = 10;						// how many valid url subpages of a webpage to process
 $site = "https://www.nobleprog.co.uk/"; // base url must end with a slash
 $str = "training";						// keyword to find
 
